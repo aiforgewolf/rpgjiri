@@ -8,6 +8,8 @@ A 2D real-time strategy game inspired by **Anakin's Castle Duels**, a classic Cz
 
 The game is automatically built and deployed to GitHub Pages using Pygbag.
 
+> **Note:** The web version supports **singleplayer only** (vs AI). For **multiplayer 1vs1 online**, download and run the desktop version (see installation below).
+
 ![Game Screenshot](screenshot.png)
 
 ## Features

@@ -9,7 +9,7 @@ import random
 from config import *
 from castle import Castle
 from units import Knight, Archer, Spearman, Mage, Cannon, Hero
-from network import NetworkManager
+from network import NetworkManager, SOCKETIO_AVAILABLE
 
 
 class Game:
@@ -94,19 +94,14 @@ class Game:
 
             if event.type == pygame.KEYDOWN:
                 if self.state == 'menu':
-                    if event.key == pygame.K_1:
+                    if event.key == pygame.K_1 or event.key == pygame.K_SPACE:
                         # Singleplayer
                         self.game_mode = 'singleplayer'
                         self.state = 'playing'
                         self.reset_game()
-                    elif event.key == pygame.K_2:
-                        # Multiplayer
+                    elif event.key == pygame.K_2 and SOCKETIO_AVAILABLE:
+                        # Multiplayer (only if socketio available)
                         self.state = 'multiplayer_menu'
-                    elif event.key == pygame.K_SPACE:
-                        # Legacy - default to singleplayer
-                        self.game_mode = 'singleplayer'
-                        self.state = 'playing'
-                        self.reset_game()
 
                 elif self.state == 'multiplayer_menu':
                     if event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
@@ -526,14 +521,24 @@ class Game:
         self.screen.blit(subtitle, subtitle_rect)
 
         # Mode selection
-        mode_text = [
-            "Select Game Mode:",
-            "",
-            "Press 1 - Singleplayer vs AI",
-            "Press 2 - Multiplayer 1vs1 Online",
-            "",
-            "Or press SPACE for Singleplayer"
-        ]
+        mode_text = []
+
+        if SOCKETIO_AVAILABLE:
+            # Desktop version with multiplayer
+            mode_text = [
+                "Select Game Mode:",
+                "",
+                "Press 1 or SPACE - Singleplayer vs AI",
+                "Press 2 - Multiplayer 1vs1 Online",
+            ]
+        else:
+            # Web version - multiplayer not available
+            mode_text = [
+                "Press SPACE or 1 to Start",
+                "",
+                "(Multiplayer is only available in desktop version)",
+                "Download from GitHub to play online 1vs1!"
+            ]
 
         y = 380
         for line in mode_text:
