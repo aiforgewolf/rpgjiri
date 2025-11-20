@@ -1,14 +1,34 @@
 """
 Network Manager for Multiplayer
-Handles client-server communication
+Handles client-server communication for both desktop and web
 """
 
-try:
-    import socketio
-    SOCKETIO_AVAILABLE = True
-except ImportError:
+import sys
+import json
+
+# Detect platform
+IS_WEB = sys.platform == 'emscripten' or 'pygbag' in sys.modules
+
+# Try to import platform for web access
+if IS_WEB:
+    try:
+        import platform
+        JS_AVAILABLE = hasattr(platform, 'window')
+    except:
+        JS_AVAILABLE = False
+else:
+    JS_AVAILABLE = False
+
+# Try to import socketio for desktop
+if not IS_WEB:
+    try:
+        import socketio
+        SOCKETIO_AVAILABLE = True
+    except ImportError:
+        SOCKETIO_AVAILABLE = False
+        print("Warning: python-socketio not available. Multiplayer disabled.")
+else:
     SOCKETIO_AVAILABLE = False
-    print("Warning: python-socketio not available. Multiplayer disabled.")
 
 
 class NetworkManager:
@@ -23,12 +43,28 @@ class NetworkManager:
         self.in_game = False
         self.opponent_actions = []
 
-        if SOCKETIO_AVAILABLE:
-            self.sio = socketio.Client()
-            self.setup_handlers()
+        # Web-specific
+        self.is_web = IS_WEB
+        self.js_ws = None
 
-    def setup_handlers(self):
-        """Setup event handlers"""
+        print(f"[Network] Platform: {'Web' if IS_WEB else 'Desktop'}")
+        print(f"[Network] SocketIO: {SOCKETIO_AVAILABLE}, JS: {JS_AVAILABLE}")
+
+        if not IS_WEB and SOCKETIO_AVAILABLE:
+            # Desktop mode
+            self.sio = socketio.Client()
+            self.setup_desktop_handlers()
+        elif IS_WEB and JS_AVAILABLE:
+            # Web mode
+            try:
+                import platform as plat
+                self.js_ws = plat.window.gameWebSocket
+                print("[Network] Web mode: JavaScript WebSocket bridge ready")
+            except Exception as e:
+                print(f"[Network] Failed to access JavaScript bridge: {e}")
+
+    def setup_desktop_handlers(self):
+        """Setup event handlers for desktop (python-socketio)"""
         if not self.sio:
             return
 
@@ -48,7 +84,6 @@ class NetworkManager:
             self.role = data['role']
             self.in_game = True
             print(f'Match found! You are {self.role}')
-            print(f'Game ID: {self.game_id}')
 
         @self.sio.on('game_start')
         def on_game_start(data):
@@ -77,14 +112,6 @@ class NetworkManager:
                 'mines': data['mines']
             })
 
-        @self.sio.on('castle_damaged')
-        def on_castle_damaged(data):
-            self.opponent_actions.append({
-                'type': 'castle_damage',
-                'damage': data['damage'],
-                'new_hp': data['new_hp']
-            })
-
         @self.sio.on('opponent_disconnected')
         def on_opponent_disconnected(data):
             print(f'Opponent disconnected: {data["reason"]}')
@@ -99,73 +126,178 @@ class NetworkManager:
         def on_error(data):
             print(f'Error: {data["message"]}')
 
-    def connect(self, server_url='http://localhost:5000'):
-        """Connect to multiplayer server"""
-        if not SOCKETIO_AVAILABLE:
-            print("Cannot connect: python-socketio not installed")
-            return False
+    def poll_web_messages(self):
+        """Poll messages from JavaScript WebSocket (web mode)"""
+        if not self.is_web or not self.js_ws:
+            return
 
         try:
-            self.sio.connect(server_url)
-            return True
+            import platform as plat
+            messages = plat.window.gameWebSocket.getMessages()
+
+            if messages and len(messages) > 0:
+                for msg in messages:
+                    msg_type = msg.get('type')
+
+                    if msg_type == 'connected':
+                        self.player_id = msg.get('player_id')
+                        self.connected = True
+                        print(f'[Web] Connected: {self.player_id}')
+
+                    elif msg_type == 'match_found':
+                        self.game_id = msg.get('game_id')
+                        self.role = msg.get('role')
+                        self.in_game = True
+                        print(f'[Web] Match found! Role: {self.role}')
+
+                    elif msg_type == 'game_start':
+                        print('[Web] Game starting!')
+
+                    elif msg_type == 'opponent_unit_spawn':
+                        self.opponent_actions.append({
+                            'type': 'unit_spawn',
+                            'unit_type': msg.get('unit_type')
+                        })
+
+                    elif msg_type == 'opponent_spell_cast':
+                        self.opponent_actions.append({
+                            'type': 'spell_cast',
+                            'spell_name': msg.get('spell_name')
+                        })
+
+                    elif msg_type == 'opponent_mine_built':
+                        self.opponent_actions.append({
+                            'type': 'mine_built',
+                            'mines': msg.get('mines', 0)
+                        })
+
+                    elif msg_type == 'disconnected':
+                        self.connected = False
+                        self.in_game = False
+
         except Exception as e:
-            print(f'Failed to connect to server: {e}')
-            return False
+            print(f'[Web] Poll error: {e}')
+
+    def connect(self, server_url='http://localhost:5000'):
+        """Connect to multiplayer server"""
+        print(f"[Network] Connecting to: {server_url}")
+
+        if self.is_web and self.js_ws:
+            # Web mode - use JavaScript WebSocket
+            try:
+                import platform as plat
+                result = plat.window.gameWebSocket.connect(server_url)
+                self.connected = True
+                print(f"[Web] Connect result: {result}")
+                return True
+            except Exception as e:
+                print(f"[Web] Connect failed: {e}")
+                return False
+
+        elif not self.is_web and SOCKETIO_AVAILABLE:
+            # Desktop mode - use python-socketio
+            try:
+                self.sio.connect(server_url)
+                return True
+            except Exception as e:
+                print(f'[Desktop] Connect failed: {e}')
+                return False
+
+        return False
 
     def disconnect(self):
         """Disconnect from server"""
-        if self.sio and self.connected:
+        if self.is_web and self.js_ws:
+            try:
+                import platform as plat
+                plat.window.gameWebSocket.disconnect()
+            except:
+                pass
+        elif self.sio and self.connected:
             self.sio.disconnect()
-            self.connected = False
+
+        self.connected = False
+
+    def send_message(self, event_name, data=None):
+        """Send a message to server"""
+        if data is None:
+            data = {}
+
+        message = {
+            'event': event_name,
+            'data': data
+        }
+
+        if self.is_web and self.js_ws:
+            try:
+                import platform as plat
+                plat.window.gameWebSocket.send(message)
+                return True
+            except Exception as e:
+                print(f'[Web] Send failed: {e}')
+                return False
+
+        elif self.sio and self.connected:
+            try:
+                self.sio.emit(event_name, data)
+                return True
+            except Exception as e:
+                print(f'[Desktop] Send failed: {e}')
+                return False
+
+        return False
 
     def find_match(self):
         """Start searching for a match"""
         if self.connected:
-            self.sio.emit('find_match')
+            return self.send_message('find_match')
+        return False
 
     def cancel_search(self):
         """Cancel matchmaking search"""
         if self.connected:
-            self.sio.emit('cancel_search')
+            return self.send_message('cancel_search')
+        return False
 
     def ready(self):
         """Mark player as ready"""
         if self.connected and self.in_game:
-            self.sio.emit('ready')
+            return self.send_message('ready')
+        return False
 
     def send_unit_spawn(self, unit_type):
         """Send unit spawn event"""
         if self.connected and self.in_game:
-            self.sio.emit('unit_spawn', {'unit_type': unit_type})
+            return self.send_message('unit_spawn', {'unit_type': unit_type})
+        return False
 
     def send_spell_cast(self, spell_name):
         """Send spell cast event"""
         if self.connected and self.in_game:
-            self.sio.emit('spell_cast', {'spell_name': spell_name})
+            return self.send_message('spell_cast', {'spell_name': spell_name})
+        return False
 
     def send_mine_built(self):
         """Send mine built event"""
         if self.connected and self.in_game:
-            self.sio.emit('mine_built', {})
-
-    def send_castle_damage(self, damage, new_hp):
-        """Send castle damage event"""
-        if self.connected and self.in_game:
-            self.sio.emit('castle_damage', {
-                'damage': damage,
-                'new_hp': new_hp
-            })
+            return self.send_message('mine_built', {})
+        return False
 
     def send_game_over(self, winner, reason='Castle destroyed'):
         """Send game over event"""
         if self.connected and self.in_game:
-            self.sio.emit('game_over', {
+            return self.send_message('game_over', {
                 'winner': winner,
                 'reason': reason
             })
+        return False
 
     def get_opponent_actions(self):
         """Get and clear opponent actions queue"""
+        # Poll for new messages in web mode
+        if self.is_web:
+            self.poll_web_messages()
+
         actions = self.opponent_actions.copy()
         self.opponent_actions.clear()
         return actions
@@ -177,3 +309,11 @@ class NetworkManager:
     def is_player2(self):
         """Check if this player is player 2"""
         return self.role == 'player2'
+
+    def is_available(self):
+        """Check if multiplayer is available"""
+        return (IS_WEB and JS_AVAILABLE) or (not IS_WEB and SOCKETIO_AVAILABLE)
+
+
+# Export flag for game.py
+MULTIPLAYER_AVAILABLE = IS_WEB or SOCKETIO_AVAILABLE

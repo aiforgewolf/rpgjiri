@@ -8,7 +8,7 @@ A 2D real-time strategy game inspired by **Anakin's Castle Duels**, a classic Cz
 
 The game is automatically built and deployed to GitHub Pages using Pygbag.
 
-> **Note:** The web version supports **singleplayer only** (vs AI). For **multiplayer 1vs1 online**, download and run the desktop version (see installation below).
+> **🆕 Multiplayer 1vs1 Now Available!** The web version now supports online multiplayer! Deploy the server on Railway and battle other players directly in your browser. See deployment instructions below.
 
 ![Game Screenshot](screenshot.png)
 
@@ -237,12 +237,19 @@ To enable multiplayer mode, you need to deploy the WebSocket server.
 4. **Get your server URL**:
    - Railway provides a public URL: `https://your-app.railway.app`
 
-5. **Update game client**:
-   - Edit `game.py`, line 34:
+5. **Update game client** (for both web and desktop):
+   - **For Web**: Edit `game.py`, line 35:
    ```python
    self.server_url = 'https://your-app.railway.app'
    ```
-   - Rebuild and redeploy your game
+   - **For Web**: Also edit `index.html`, line 243:
+   ```javascript
+   serverUrl: 'wss://your-app.railway.app'
+   ```
+   - Commit and push changes
+   - GitHub Pages will auto-rebuild (wait 2-3 minutes)
+
+   - **For Desktop**: Same change in `game.py`, then run locally
 
 ### Local Server Testing
 

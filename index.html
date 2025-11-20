@@ -166,8 +166,8 @@
             </div>
         </div>
 
-        <div style="background: rgba(255,150,0,0.2); border: 2px solid #ff9500; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
-            <p style="margin: 0;"><strong>🎮 Multiplayer 1vs1:</strong> Online multiplayer is only available in the <a href="https://github.com/aiforgewolf/rpgjiri" target="_blank">desktop version</a>. Download and run locally to battle other players!</p>
+        <div style="background: rgba(0,255,100,0.15); border: 2px solid #00dd66; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
+            <p style="margin: 0;"><strong>🎮 Multiplayer 1vs1 NOW AVAILABLE!</strong> Play online directly in your browser! Press <strong>2</strong> in-game to start matchmaking. Requires a deployed server on Railway.</p>
         </div>
 
         <div class="controls">
@@ -182,7 +182,8 @@
                 <li><span class="key">H</span> - Cast Heal spell</li>
                 <li><span class="key">G</span> - Cast Gold Boost spell</li>
                 <li><span class="key">Z</span> - Cast Freeze spell</li>
-                <li><span class="key">SPACE</span> or <span class="key">1</span> - Start game / Return to menu</li>
+                <li><span class="key">1</span> or <span class="key">SPACE</span> - Start Singleplayer</li>
+                <li><span class="key">2</span> - Start Multiplayer 1vs1 Online</li>
             </ul>
             <p style="margin-top: 1rem; font-style: italic;">💡 Tip: You can also click the on-screen buttons in-game if keyboard doesn't work!</p>
         </div>
@@ -234,6 +235,91 @@
             } else {
                 setupCanvas();
             }
+
+            // ===== WebSocket Manager for Multiplayer =====
+            window.gameWebSocket = {
+                ws: null,
+                connected: false,
+                messageCallbacks: [],
+                serverUrl: 'wss://your-server.railway.app', // Will be updated
+
+                connect: function(url) {
+                    console.log('[WebSocket] Connecting to:', url);
+                    this.serverUrl = url;
+
+                    try {
+                        // Use wss:// for https, ws:// for http
+                        const wsUrl = url.replace('https://', 'wss://').replace('http://', 'ws://');
+                        this.ws = new WebSocket(wsUrl + '/socket.io/?EIO=4&transport=websocket');
+
+                        this.ws.onopen = () => {
+                            console.log('[WebSocket] Connected!');
+                            this.connected = true;
+                            this.sendToPython({type: 'connected', player_id: 'web_' + Date.now()});
+                        };
+
+                        this.ws.onmessage = (event) => {
+                            console.log('[WebSocket] Message:', event.data);
+                            try {
+                                const data = JSON.parse(event.data);
+                                this.sendToPython(data);
+                            } catch (e) {
+                                console.error('[WebSocket] Parse error:', e);
+                            }
+                        };
+
+                        this.ws.onerror = (error) => {
+                            console.error('[WebSocket] Error:', error);
+                            this.sendToPython({type: 'error', message: 'Connection error'});
+                        };
+
+                        this.ws.onclose = () => {
+                            console.log('[WebSocket] Disconnected');
+                            this.connected = false;
+                            this.sendToPython({type: 'disconnected'});
+                        };
+
+                        return true;
+                    } catch (e) {
+                        console.error('[WebSocket] Failed to connect:', e);
+                        return false;
+                    }
+                },
+
+                disconnect: function() {
+                    if (this.ws) {
+                        this.ws.close();
+                        this.ws = null;
+                        this.connected = false;
+                    }
+                },
+
+                send: function(data) {
+                    if (this.ws && this.connected) {
+                        console.log('[WebSocket] Sending:', data);
+                        this.ws.send(JSON.stringify(data));
+                        return true;
+                    }
+                    return false;
+                },
+
+                sendToPython: function(data) {
+                    // Store messages for Python to poll
+                    this.messageCallbacks.push(data);
+                    // Keep only last 100 messages
+                    if (this.messageCallbacks.length > 100) {
+                        this.messageCallbacks.shift();
+                    }
+                },
+
+                getMessages: function() {
+                    const messages = this.messageCallbacks.slice();
+                    this.messageCallbacks = [];
+                    return messages;
+                }
+            };
+
+            console.log('[WebSocket] Manager initialized');
         </script>
 
         <div class="credit">

@@ -9,7 +9,7 @@ import random
 from config import *
 from castle import Castle
 from units import Knight, Archer, Spearman, Mage, Cannon, Hero
-from network import NetworkManager, SOCKETIO_AVAILABLE
+from network import NetworkManager, MULTIPLAYER_AVAILABLE
 
 
 class Game:
@@ -31,7 +31,8 @@ class Game:
 
         # Multiplayer
         self.network = NetworkManager()
-        self.server_url = 'http://localhost:5000'  # Default, can be changed
+        # Default server - change to your Railway URL
+        self.server_url = 'https://your-server.railway.app'  # Will work with wss:// automatically
 
         # Initialize game objects
         self.reset_game()
@@ -99,8 +100,8 @@ class Game:
                         self.game_mode = 'singleplayer'
                         self.state = 'playing'
                         self.reset_game()
-                    elif event.key == pygame.K_2 and SOCKETIO_AVAILABLE:
-                        # Multiplayer (only if socketio available)
+                    elif event.key == pygame.K_2 and MULTIPLAYER_AVAILABLE:
+                        # Multiplayer (only if available)
                         self.state = 'multiplayer_menu'
 
                 elif self.state == 'multiplayer_menu':
@@ -523,8 +524,8 @@ class Game:
         # Mode selection
         mode_text = []
 
-        if SOCKETIO_AVAILABLE:
-            # Desktop version with multiplayer
+        if MULTIPLAYER_AVAILABLE:
+            # Multiplayer available (desktop or web with JS)
             mode_text = [
                 "Select Game Mode:",
                 "",
@@ -532,12 +533,12 @@ class Game:
                 "Press 2 - Multiplayer 1vs1 Online",
             ]
         else:
-            # Web version - multiplayer not available
+            # Multiplayer not available
             mode_text = [
                 "Press SPACE or 1 to Start",
                 "",
-                "(Multiplayer is only available in desktop version)",
-                "Download from GitHub to play online 1vs1!"
+                "(Multiplayer is not available)",
+                "Check server connection!"
             ]
 
         y = 380
