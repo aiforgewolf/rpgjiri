@@ -98,10 +98,31 @@
             border-radius: 8px;
             max-width: 100%;
             height: auto;
+            cursor: pointer;
+        }
+        canvas:hover {
+            border-color: #ffed4e;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
         }
         .loading {
             font-size: 1.2rem;
             margin: 2rem 0;
+        }
+        .click-notice {
+            background: rgba(255, 215, 0, 0.2);
+            border: 2px solid #ffd700;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .click-notice.hidden {
+            display: none;
         }
         .credit {
             margin-top: 2rem;
@@ -147,6 +168,9 @@
 
         <div class="controls">
             <h3>🎮 Controls</h3>
+            <p style="background: rgba(255,215,0,0.2); padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem;">
+                <strong>⚠️ IMPORTANT:</strong> Click on the game canvas first to enable keyboard controls!
+            </p>
             <ul>
                 <li><span class="key">1-6</span> - Produce units (Knight, Archer, Spearman, Mage, Cannon, Hero)</li>
                 <li><span class="key">M</span> - Build Mine (+3 gold/sec)</li>
@@ -156,13 +180,57 @@
                 <li><span class="key">Z</span> - Cast Freeze spell</li>
                 <li><span class="key">SPACE</span> - Start game / Return to menu</li>
             </ul>
-            <p style="margin-top: 1rem; font-style: italic;">You can also click the on-screen buttons!</p>
+            <p style="margin-top: 1rem; font-style: italic;">💡 Tip: You can also click the on-screen buttons if keyboard doesn't work!</p>
         </div>
 
         <div class="game-container">
+            <div id="click-notice" class="click-notice">
+                👆 Click on the game canvas below, then press SPACE to start! 👆
+            </div>
             <div id="pygame-container"></div>
             <script src="main.py" type="module" async></script>
         </div>
+
+        <script>
+            // Wait for canvas to load and add click handler
+            function setupCanvas() {
+                const canvas = document.querySelector('canvas');
+                if (canvas) {
+                    console.log('Canvas found, setting up click handler');
+
+                    // Add click event to focus canvas and hide notice
+                    canvas.addEventListener('click', function() {
+                        canvas.focus();
+                        const notice = document.getElementById('click-notice');
+                        if (notice) {
+                            notice.classList.add('hidden');
+                        }
+                        console.log('Canvas clicked and focused');
+                    });
+
+                    // Try to focus canvas automatically (may not work due to browser restrictions)
+                    canvas.setAttribute('tabindex', '0');
+
+                    // Show notice again if canvas loses focus
+                    canvas.addEventListener('blur', function() {
+                        const notice = document.getElementById('click-notice');
+                        if (notice) {
+                            notice.classList.remove('hidden');
+                        }
+                    });
+                } else {
+                    // Retry after a short delay if canvas not found yet
+                    setTimeout(setupCanvas, 500);
+                }
+            }
+
+            // Start checking for canvas after page loads
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', setupCanvas);
+            } else {
+                setupCanvas();
+            }
+        </script>
 
         <div class="credit">
             <p>Inspired by <strong>Anakin's Castle Duels</strong> - a classic Czech strategy game</p>
