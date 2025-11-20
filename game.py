@@ -3,6 +3,7 @@ Main Game Logic
 Castle Strategy Game
 """
 
+import asyncio
 import pygame
 import random
 from config import *
@@ -49,7 +50,7 @@ class Game:
         # Game time
         self.game_time = 0
 
-    def run(self):
+    async def run(self):
         """Main game loop"""
         while self.running:
             dt = self.clock.tick(FPS) / 1000.0  # Delta time in seconds
@@ -65,6 +66,9 @@ class Game:
                 self.draw_game_over()
 
             pygame.display.flip()
+
+            # Yield control back to browser (required for pygbag)
+            await asyncio.sleep(0)
 
         pygame.quit()
 

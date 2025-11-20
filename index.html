@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Castle Strategy Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 800px;
+        }
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+        .game-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 2rem auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .description {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            text-align: left;
+            background: rgba(255,255,255,0.1);
+            padding: 1.5rem;
+            border-radius: 8px;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+        .feature {
+            background: rgba(255,255,255,0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #ffd700;
+        }
+        .feature h3 {
+            margin-top: 0;
+            color: #ffd700;
+        }
+        .controls {
+            background: rgba(255,255,255,0.1);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+        .controls h3 {
+            color: #ffd700;
+            margin-top: 0;
+        }
+        .controls ul {
+            list-style: none;
+            padding: 0;
+        }
+        .controls li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .controls li:last-child {
+            border-bottom: none;
+        }
+        .key {
+            background: rgba(255,255,255,0.2);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        canvas {
+            border: 4px solid #ffd700;
+            border-radius: 8px;
+            max-width: 100%;
+            height: auto;
+        }
+        .loading {
+            font-size: 1.2rem;
+            margin: 2rem 0;
+        }
+        .credit {
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        a {
+            color: #ffd700;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏰 Castle Strategy 🏰</h1>
+        <h2>Inspired by Anakin's Castle Duels</h2>
+
+        <div class="description">
+            <p>A 2D real-time strategy game where two castles battle against each other! Defend your castle and destroy the enemy by producing units, managing resources, and casting powerful spells.</p>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <h3>⚔️ 6 Unit Types</h3>
+                <p>Knights, Archers, Spearmen, Mages, Cannons, and Heroes!</p>
+            </div>
+            <div class="feature">
+                <h3>💰 Resource Management</h3>
+                <p>Generate gold and build mines to increase income</p>
+            </div>
+            <div class="feature">
+                <h3>✨ Spell System</h3>
+                <p>Cast Fireball, Heal, Gold Boost, and Freeze spells</p>
+            </div>
+            <div class="feature">
+                <h3>🤖 AI Opponent</h3>
+                <p>Battle against an adaptive AI with multiple strategies</p>
+            </div>
+        </div>
+
+        <div class="controls">
+            <h3>🎮 Controls</h3>
+            <ul>
+                <li><span class="key">1-6</span> - Produce units (Knight, Archer, Spearman, Mage, Cannon, Hero)</li>
+                <li><span class="key">M</span> - Build Mine (+3 gold/sec)</li>
+                <li><span class="key">F</span> - Cast Fireball spell</li>
+                <li><span class="key">H</span> - Cast Heal spell</li>
+                <li><span class="key">G</span> - Cast Gold Boost spell</li>
+                <li><span class="key">Z</span> - Cast Freeze spell</li>
+                <li><span class="key">SPACE</span> - Start game / Return to menu</li>
+            </ul>
+            <p style="margin-top: 1rem; font-style: italic;">You can also click the on-screen buttons!</p>
+        </div>
+
+        <div class="game-container">
+            <div id="pygame-container"></div>
+            <script src="main.py" type="module" async></script>
+        </div>
+
+        <div class="credit">
+            <p>Inspired by <strong>Anakin's Castle Duels</strong> - a classic Czech strategy game</p>
+            <p>Created with Python and Pygame | <a href="https://github.com/aiforgewolf/rpgjiri" target="_blank">View on GitHub</a></p>
+        </div>
+    </div>
+</body>
+</html>

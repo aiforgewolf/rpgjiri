@@ -2,6 +2,12 @@
 
 A 2D real-time strategy game inspired by **Anakin's Castle Duels**, a classic Czech game. Two castles battle against each other, and players must produce units and manage resources to destroy the enemy castle while defending their own.
 
+## 🎮 Play Online
+
+**[Play the game in your browser!](https://aiforgewolf.github.io/rpgjiri/)** - No installation required!
+
+The game is automatically built and deployed to GitHub Pages using Pygbag.
+
 ![Game Screenshot](screenshot.png)
 
 ## Features
@@ -30,7 +36,9 @@ A 2D real-time strategy game inspired by **Anakin's Castle Duels**, a classic Cz
   - Different unit ranges and attack speeds create strategic depth
   - AI opponent with varying strategies (aggressive, defensive, balanced)
 
-## Installation
+## Desktop Installation (Optional)
+
+You can also run the game locally on your desktop!
 
 ### Requirements
 - Python 3.7 or higher
@@ -129,14 +137,57 @@ Destroy the enemy castle while defending your own!
 
 ```
 rpgjiri/
-├── main.py           # Entry point
-├── game.py           # Main game loop and logic
-├── castle.py         # Castle class
-├── units.py          # Unit classes
-├── config.py         # Game configuration and constants
-├── requirements.txt  # Python dependencies
-└── README.md         # This file
+├── main.py              # Entry point
+├── game.py              # Main game loop and logic
+├── castle.py            # Castle class
+├── units.py             # Unit classes
+├── config.py            # Game configuration and constants
+├── requirements.txt     # Python dependencies
+├── index.html           # Web version landing page
+├── .github/workflows/   # GitHub Actions for deployment
+└── README.md            # This file
 ```
+
+## Deploying to GitHub Pages
+
+This game is configured to automatically deploy to GitHub Pages using Pygbag when you push to the repository.
+
+### Setup Instructions
+
+1. **Enable GitHub Pages** in your repository:
+   - Go to Settings → Pages
+   - Under "Build and deployment", select "GitHub Actions" as the source
+
+2. **Push your code** to the repository:
+   ```bash
+   git push origin main
+   ```
+
+3. **Wait for deployment**:
+   - Go to the "Actions" tab in your GitHub repository
+   - Watch the "Deploy to GitHub Pages" workflow complete
+   - Once finished, your game will be live at: `https://[username].github.io/[repository-name]/`
+
+4. **Access your game**:
+   - The game will be playable in any modern web browser
+   - No installation required for players!
+
+### Local Web Testing
+
+To test the web version locally before deploying:
+
+```bash
+# Install pygbag
+pip install pygbag
+
+# Build and serve locally
+python -m pygbag --build .
+
+# Or run in live mode (auto-rebuild on changes)
+python -m pygbag .
+```
+
+Then open your browser to `http://localhost:8000`
 
 ## Customization
 
