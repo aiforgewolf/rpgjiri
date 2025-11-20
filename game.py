@@ -9,6 +9,7 @@ import random
 from config import *
 from castle import Castle
 from units import Knight, Archer, Spearman, Mage, Cannon, Hero
+from network import NetworkManager
 
 
 class Game:
@@ -24,8 +25,13 @@ class Game:
         self.running = True
 
         # Game state
-        self.state = 'menu'  # menu, playing, game_over
+        self.state = 'menu'  # menu, multiplayer_menu, searching, playing, game_over
+        self.game_mode = 'singleplayer'  # 'singleplayer' or 'multiplayer'
         self.winner = None
+
+        # Multiplayer
+        self.network = NetworkManager()
+        self.server_url = 'http://localhost:5000'  # Default, can be changed
 
         # Initialize game objects
         self.reset_game()
@@ -59,6 +65,11 @@ class Game:
 
             if self.state == 'menu':
                 self.draw_menu()
+            elif self.state == 'multiplayer_menu':
+                self.draw_multiplayer_menu()
+            elif self.state == 'searching':
+                self.draw_searching()
+                self.check_match_found()
             elif self.state == 'playing':
                 self.update(dt)
                 self.draw()
@@ -70,6 +81,9 @@ class Game:
             # Yield control back to browser (required for pygbag)
             await asyncio.sleep(0)
 
+        # Clean up
+        if self.network.connected:
+            self.network.disconnect()
         pygame.quit()
 
     def handle_events(self):
@@ -80,9 +94,35 @@ class Game:
 
             if event.type == pygame.KEYDOWN:
                 if self.state == 'menu':
-                    if event.key == pygame.K_SPACE:
+                    if event.key == pygame.K_1:
+                        # Singleplayer
+                        self.game_mode = 'singleplayer'
                         self.state = 'playing'
                         self.reset_game()
+                    elif event.key == pygame.K_2:
+                        # Multiplayer
+                        self.state = 'multiplayer_menu'
+                    elif event.key == pygame.K_SPACE:
+                        # Legacy - default to singleplayer
+                        self.game_mode = 'singleplayer'
+                        self.state = 'playing'
+                        self.reset_game()
+
+                elif self.state == 'multiplayer_menu':
+                    if event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
+                        # Start matchmaking
+                        if not self.network.connected:
+                            self.network.connect(self.server_url)
+                        if self.network.connected:
+                            self.network.find_match()
+                            self.state = 'searching'
+                    elif event.key == pygame.K_ESCAPE:
+                        self.state = 'menu'
+
+                elif self.state == 'searching':
+                    if event.key == pygame.K_ESCAPE:
+                        self.network.cancel_search()
+                        self.state = 'multiplayer_menu'
 
                 elif self.state == 'playing':
                     self.handle_game_input(event.key)
@@ -112,7 +152,10 @@ class Game:
 
         # Build mine
         elif key == pygame.K_m:
-            self.player_castle.build_mine()
+            if self.player_castle.build_mine():
+                # Send to opponent in multiplayer
+                if self.game_mode == 'multiplayer' and self.network.in_game:
+                    self.network.send_mine_built()
 
         # Spells
         elif key == pygame.K_f:
@@ -152,6 +195,9 @@ class Game:
         unit = self.player_castle.produce_unit(unit_type)
         if unit:
             self.player_units.append(unit)
+            # Send to opponent in multiplayer
+            if self.game_mode == 'multiplayer' and self.network.in_game:
+                self.network.send_unit_spawn(unit_type)
 
     def produce_enemy_unit(self, unit_type):
         """Produce a unit for the enemy"""
@@ -163,6 +209,9 @@ class Game:
         """Cast a spell for the player"""
         if self.player_castle.cast_spell(spell_name):
             self.apply_spell_effect(spell_name, 'player')
+            # Send to opponent in multiplayer
+            if self.game_mode == 'multiplayer' and self.network.in_game:
+                self.network.send_spell_cast(spell_name)
 
     def cast_enemy_spell(self, spell_name):
         """Cast a spell for the enemy"""
@@ -217,8 +266,12 @@ class Game:
         self.player_units = [u for u in self.player_units if u.alive]
         self.enemy_units = [u for u in self.enemy_units if u.alive]
 
-        # AI behavior
-        self.update_ai(dt)
+        # Multiplayer: process opponent actions
+        if self.game_mode == 'multiplayer' and self.network.in_game:
+            self.process_opponent_actions()
+        else:
+            # AI behavior (only in singleplayer)
+            self.update_ai(dt)
 
         # Check win/lose conditions
         if self.player_castle.is_destroyed():
@@ -472,23 +525,18 @@ class Game:
         subtitle_rect = subtitle.get_rect(center=(SCREEN_WIDTH // 2, 280))
         self.screen.blit(subtitle, subtitle_rect)
 
-        # Instructions
-        instructions = [
-            "Defend your castle and destroy the enemy!",
+        # Mode selection
+        mode_text = [
+            "Select Game Mode:",
             "",
-            "Units:",
-            "  1 - Knight: Balanced melee fighter",
-            "  2 - Archer: Ranged attacker",
-            "  3 - Spearman: Medium range fighter",
-            "  4 - Mage: High damage magic user",
-            "  5 - Cannon: Extreme range siege unit",
-            "  6 - Hero: Powerful champion",
+            "Press 1 - Singleplayer vs AI",
+            "Press 2 - Multiplayer 1vs1 Online",
             "",
-            "Press SPACE to Start"
+            "Or press SPACE for Singleplayer"
         ]
 
-        y = 350
-        for line in instructions:
+        y = 380
+        for line in mode_text:
             text = self.small_font.render(line, True, BLACK)
             text_rect = text.get_rect(center=(SCREEN_WIDTH // 2, y))
             self.screen.blit(text, text_rect)
@@ -512,3 +560,80 @@ class Game:
         continue_text = self.font.render("Press SPACE to return to menu", True, WHITE)
         continue_rect = continue_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50))
         self.screen.blit(continue_text, continue_rect)
+
+    def draw_multiplayer_menu(self):
+        """Draw multiplayer menu"""
+        self.screen.fill(LIGHT_BLUE)
+
+        # Title
+        title_font = pygame.font.Font(None, 64)
+        title = title_font.render("MULTIPLAYER 1vs1", True, BLACK)
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 200))
+        self.screen.blit(title, title_rect)
+
+        # Info
+        info_text = [
+            "Fight against a real player online!",
+            "",
+            f"Server: {self.server_url}",
+            "",
+            "Press SPACE to find a match",
+            "Press ESC to go back"
+        ]
+
+        y = 350
+        for line in info_text:
+            text = self.small_font.render(line, True, BLACK)
+            text_rect = text.get_rect(center=(SCREEN_WIDTH // 2, y))
+            self.screen.blit(text, text_rect)
+            y += 40
+
+    def draw_searching(self):
+        """Draw searching for match screen"""
+        self.screen.fill(LIGHT_BLUE)
+
+        # Title
+        title_font = pygame.font.Font(None, 64)
+        title = title_font.render("SEARCHING FOR OPPONENT...", True, BLACK)
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50))
+        self.screen.blit(title, title_rect)
+
+        # Animated dots
+        dots = '.' * (int(self.game_time * 2) % 4)
+        waiting = self.font.render(f"Please wait{dots}", True, DARK_GRAY)
+        waiting_rect = waiting.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 20))
+        self.screen.blit(waiting, waiting_rect)
+
+        # Cancel instruction
+        cancel = self.small_font.render("Press ESC to cancel", True, DARK_GRAY)
+        cancel_rect = cancel.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 80))
+        self.screen.blit(cancel, cancel_rect)
+
+    def check_match_found(self):
+        """Check if match was found and start game"""
+        if self.network.in_game and self.state == 'searching':
+            # Match found! Start game
+            self.game_mode = 'multiplayer'
+            self.reset_game()
+            self.network.ready()
+            self.state = 'playing'
+            print(f'Match started! You are {self.network.role}')
+
+    def process_opponent_actions(self):
+        """Process opponent actions in multiplayer"""
+        actions = self.network.get_opponent_actions()
+
+        for action in actions:
+            action_type = action.get('type')
+
+            if action_type == 'unit_spawn':
+                unit_type = action.get('unit_type')
+                self.produce_enemy_unit(unit_type)
+
+            elif action_type == 'spell_cast':
+                spell_name = action.get('spell_name')
+                self.cast_enemy_spell(spell_name)
+
+            elif action_type == 'mine_built':
+                # Sync opponent's mine count
+                self.enemy_castle.mines = action.get('mines', 0)

@@ -36,6 +36,23 @@ The game is automatically built and deployed to GitHub Pages using Pygbag.
   - Different unit ranges and attack speeds create strategic depth
   - AI opponent with varying strategies (aggressive, defensive, balanced)
 
+- **🆕 Online Multiplayer 1vs1**:
+  - Real-time matches against other players
+  - Automatic matchmaking
+  - WebSocket-based synchronization
+  - Play from anywhere in the world
+
+## Game Modes
+
+### Singleplayer
+Battle against an adaptive AI opponent with three strategies:
+- **Aggressive**: Focuses on offensive units
+- **Defensive**: Prioritizes ranged units and defense
+- **Balanced**: Mix of all unit types
+
+### Multiplayer (1vs1 Online)
+Face off against real players in real-time battles! The multiplayer server handles matchmaking and synchronizes all actions between players.
+
 ## Desktop Installation (Optional)
 
 You can also run the game locally on your desktop!
@@ -137,15 +154,22 @@ Destroy the enemy castle while defending your own!
 
 ```
 rpgjiri/
-├── main.py              # Entry point
-├── game.py              # Main game loop and logic
-├── castle.py            # Castle class
-├── units.py             # Unit classes
-├── config.py            # Game configuration and constants
-├── requirements.txt     # Python dependencies
-├── index.html           # Web version landing page
-├── .github/workflows/   # GitHub Actions for deployment
-└── README.md            # This file
+├── main.py                      # Entry point
+├── game.py                      # Main game loop and logic
+├── network.py                   # Network manager for multiplayer
+├── castle.py                    # Castle class
+├── units.py                     # Unit classes
+├── config.py                    # Game configuration and constants
+├── requirements.txt             # Python dependencies
+├── index.html                   # Web version landing page
+├── server/                      # Multiplayer server
+│   ├── multiplayer_server.py   # WebSocket server
+│   ├── requirements.txt         # Server dependencies
+│   ├── Procfile                 # Railway deployment config
+│   ├── railway.json             # Railway settings
+│   └── README.md                # Server documentation
+├── .github/workflows/           # GitHub Actions for deployment
+└── README.md                    # This file
 ```
 
 ## Deploying to GitHub Pages
@@ -188,6 +212,52 @@ python -m pygbag .
 ```
 
 Then open your browser to `http://localhost:8000`
+
+## Multiplayer Server Deployment
+
+To enable multiplayer mode, you need to deploy the WebSocket server.
+
+### Deploy on Railway.app (Recommended)
+
+1. **Create a Railway account** at [railway.app](https://railway.app)
+
+2. **Create new project**:
+   - Click "New Project"
+   - Select "Deploy from GitHub repo"
+   - Choose your repository
+   - Set root directory to `server/`
+
+3. **Configure**:
+   - Railway auto-detects the Procfile
+   - Dependencies install automatically
+   - Server starts on assigned PORT
+
+4. **Get your server URL**:
+   - Railway provides a public URL: `https://your-app.railway.app`
+
+5. **Update game client**:
+   - Edit `game.py`, line 34:
+   ```python
+   self.server_url = 'https://your-app.railway.app'
+   ```
+   - Rebuild and redeploy your game
+
+### Local Server Testing
+
+```bash
+cd server
+pip install -r requirements.txt
+python multiplayer_server.py
+```
+
+Server runs on `http://localhost:5000`
+
+### Server Endpoints
+
+- `GET /` - Health check and status
+- WebSocket events for matchmaking and game sync
+
+See `server/README.md` for detailed API documentation.
 
 ## Customization
 
